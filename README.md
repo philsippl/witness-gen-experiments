@@ -19,8 +19,7 @@ of the experiment.
 ## Run 
 > TODO: there is still a lot of manual tweaking
 
-- Generate files: `circom test.circom --r1cs --c`
-- Run transpiler: `python3 cpp_rs.py`
-- Read constants (TODO: run automatically and insert in generated code): `python3 read_constants.py`
-
+- Generate files: `circom test.circom --c`
+- Run transpiler: `python3 cpp_rs.py circuit test`
+- Run witness generation: `cargo run -- 2 2`
 

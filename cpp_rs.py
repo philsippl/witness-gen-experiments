@@ -1,5 +1,17 @@
-header = """
+import struct
+import re
+import os
+import sys
+
+CIRCUIT_PATH = sys.argv[1]
+CIRCUIT_NAME = sys.argv[2]
+
+OUT_FILE = "src/main.rs"
+
+GETTERS = {}
+HEADER = """
 mod macros;
+use std::env;
 use crate::macros::*;
 use ark_bn254::Fq as F;
 use ark_ff::Zero;
@@ -7,58 +19,46 @@ use ark_std::One;
 use ark_ff::Field;
 use num_bigint::BigUint;
 use ruint::aliases::U256;
+use std::str::FromStr;
 """
+FOOTER = """
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    let mut signalValues = vec![F::zero(); get_total_signal_no() as usize];
+    signalValues[0] = F::one(); // 1 by convention
 
-footer = """
-#[cfg(test)]
-mod tests {
-    use crate::{ComponentMemory, Multiplier_1_create, Multiplier_1_run};
-    use ark_bn254::Fq as F;
-    use ark_ff::{One, Zero, Field};
+    for (i, w) in args.into_iter().skip(1).enumerate() {
+        signalValues[2 + i] = F::from_str(&w).unwrap();
+    }
 
-    #[test]
-    fn xxx_test() {
-        let n = F::from(1);
+    let mut circuitConstants = vec![F::zero(); get_size_of_constants() as usize];
+    // @TRANSPILER_CONSTANTS
 
-        let mut signalValues = vec![F::zero(); 140];
+    let mut componentMemory = Vec::new();
+    for _ in 0..get_number_of_components() {
+        componentMemory.push(ComponentMemory {
+            templateId: 0,
+            templateName: "".to_string(),
+            componentName: "".to_string(),
+            signalStart: 0,
+            inputCounter: 0,
+            idFather: 0,
+            subcomponents: vec![0; 0],
+        });
+    }
 
-        signalValues[0] = F::one();
-        signalValues[2] = F::from(2);
-        signalValues[3] = F::from(3);
+    let mut ctx = crate::Context {
+        componentMemory,
+        signalValues,
+        circuitConstants,
+    };
 
-        let circuitConstants = vec![F::from(64), F::from(0), F::from(1)];
+    run(&mut ctx);
 
-        let mut componentMemory = Vec::new();
-        for _ in 0..10 {
-            componentMemory.push(ComponentMemory {
-                templateId: 0,
-                templateName: "".to_string(),
-                componentName: "".to_string(),
-                signalStart: 0,
-                inputCounter: 0,
-                idFather: 0,
-                subcomponents: vec![0; 0],
-            });
-        }
-
-        let mut ctx = crate::Context {
-            componentMemory,
-            signalValues,
-            circuitConstants,
-        };
-
-        Multiplier_1_create(1, 0, &mut ctx, "main".to_string(), 0);
-        Multiplier_1_run(0, &mut ctx);
-
-        println!("{}", F::from(2).inverse().unwrap() * F::from(2));
-        for i in ctx.signalValues {
-            println!("{}", i);
-        }
+    for i in ctx.signalValues {
+        println!("{}", i);
     }
 }
-
-fn main() {}
-
 """
 
 def interpret(line):
@@ -67,6 +67,12 @@ def interpret(line):
     # skip comments
     if line.startswith("//") or line.startswith("assert(") or "std::cout <<" in line:
         return ""
+
+    if line.startswith("uint get_"):
+        line = line.replace("uint", "fn")
+        line = line.replace("()", "() -> usize")
+        val = re.findall(r'\d+', line)[0]
+        GETTERS[line.split()[1]] = int(val)
     
     # replace create
     template = "_create(uint soffset,uint coffset,Circom_CalcWit* ctx,std::string componentName,uint componentFather)"
@@ -128,7 +134,13 @@ def interpret(line):
     if line.startswith("while("):
         line = line.replace("while(", "while ")
         line = line.replace("){", " {")
-        
+
+    if "_create(" in line:
+        line = line.replace("\",", "\".to_string(),")
+
+    # replace run function 
+    line = line.replace("void run(Circom_CalcWit* ctx){", "fn run(ctx: &mut Context){")
+
     line = line.replace("ctx.signalValues", "CTX_SIGNALVALUES")
     line = line.replace("signalValues", "ctx.signalValues")
     line = line.replace("CTX_SIGNALVALUES", "ctx.signalValues")
@@ -153,17 +165,16 @@ def interpret(line):
     return line
     
 
-fout = open(f"src/abc.rs", "w")
+fout = open(OUT_FILE, "w")
+fout.write(HEADER)
 
-fout.write(header)
-
-with open(f"circuit/test_cpp/test.cpp") as fin:
+with open(f"{CIRCUIT_PATH}/{CIRCUIT_NAME}_cpp/{CIRCUIT_NAME}.cpp") as fin:
     start = False
     for line in fin:
         line = line.rstrip()
         
         # ignore everything until here
-        if line == "// function declarations":
+        if "uint get_main_input_signal_start()" in line:
             start = True
             
         if not start:
@@ -175,7 +186,22 @@ with open(f"circuit/test_cpp/test.cpp") as fin:
             
         fout.write(line + "\n")
         
-fout.write(footer)
+# modify footer
+with open(f"{CIRCUIT_PATH}/{CIRCUIT_NAME}_cpp/{CIRCUIT_NAME}.dat", "rb") as f:
+    f.read(GETTERS["get_size_of_input_hashmap()"]*24) # ignore
+    f.read(GETTERS["get_size_of_witness()"]*8)  # ignore
+    
+    # we're only here for the constants:
+    constants_code = ""
+    for _ in range(0,GETTERS["get_size_of_constants()"]):
+        sv, typ, lv1, lv1, lv1, lv1 = struct.unpack('<iIQQQQ', bytearray(f.read(40)))
+        is_long = bool(typ & 0x80000000)
+        print(f"is_long = {is_long}, short_val = {sv}, type = {typ}, long_val = [{lv1}, {lv1}, {lv1}, {lv1}]")
+        constants_code += f"circuitConstants[0] = F::from({sv});\n"
+
+FOOTER = FOOTER.replace("// @TRANSPILER_CONSTANTS", constants_code)
+
+fout.write(FOOTER)
 fout.close()
 
-# TODO: run formatter on generated code
+os.system(f"cargo fmt -- {OUT_FILE}")
