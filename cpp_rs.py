@@ -13,13 +13,15 @@ HEADER = """
 mod macros;
 use std::env;
 use crate::macros::*;
-use ark_bn254::Fq as F;
+use ark_bn254::Fr as F;
 use ark_ff::Zero;
 use ark_std::One;
 use ark_ff::Field;
 use num_bigint::BigUint;
 use ruint::aliases::U256;
 use std::str::FromStr;
+use ark_ff::BigInteger256;
+use ark_ff::FromBytes;
 """
 FOOTER = """
 fn main() {
@@ -193,11 +195,15 @@ with open(f"{CIRCUIT_PATH}/{CIRCUIT_NAME}_cpp/{CIRCUIT_NAME}.dat", "rb") as f:
     
     # we're only here for the constants:
     constants_code = ""
-    for _ in range(0,GETTERS["get_size_of_constants()"]):
-        sv, typ, lv1, lv1, lv1, lv1 = struct.unpack('<iIQQQQ', bytearray(f.read(40)))
+    for i in range(0,GETTERS["get_size_of_constants()"]):
+        sv, typ = struct.unpack('<iI', bytearray(f.read(8)))
+        long_bytes = list(bytearray(f.read(32)))
         is_long = bool(typ & 0x80000000)
-        print(f"is_long = {is_long}, short_val = {sv}, type = {typ}, long_val = [{lv1}, {lv1}, {lv1}, {lv1}]")
-        constants_code += f"circuitConstants[0] = F::from({sv});\n"
+        # print(f"is_long = {is_long}, short_val = {sv}, type = {typ}, long_val = {long_bytes}")
+        if not is_long:
+            constants_code += f"circuitConstants[{i}] = F::from({sv});\n"
+        else:
+            constants_code += f"circuitConstants[{i}] = F::new(BigInteger256::read(&({long_bytes} as [u8; 32])[..]).unwrap());\n"
 
 FOOTER = FOOTER.replace("// @TRANSPILER_CONSTANTS", constants_code)
 

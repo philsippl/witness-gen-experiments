@@ -1,7 +1,9 @@
 mod macros;
 use crate::macros::*;
-use ark_bn254::Fq as F;
+use ark_bn254::Fr as F;
+use ark_ff::BigInteger256;
 use ark_ff::Field;
+use ark_ff::FromBytes;
 use ark_ff::Zero;
 use ark_std::One;
 use num_bigint::BigUint;
@@ -27,7 +29,7 @@ fn get_size_of_witness() -> usize {
     return 4;
 }
 fn get_size_of_constants() -> usize {
-    return 0;
+    return 4;
 }
 fn get_size_of_io_map() -> usize {
     return 0;
@@ -53,15 +55,19 @@ fn Multiplier_0_run(ctx_index: usize, ctx: &mut Context) {
     let myComponentName = ctx.componentMemory[ctx_index].componentName.clone();
     let myFather = ctx.componentMemory[ctx_index].idFather;
     let myId = ctx_index;
-    let mut expaux = vec![F::zero(); 3];
+    let mut expaux = vec![F::zero(); 7];
     let mut lvar = vec![F::zero(); 0];
     {
         let aux_dest = &ctx.signalValues[mySignalStart + 0] as *const FieldElement;
         Fr_mul!(
-            expaux[0],
+            expaux[4],
             ctx.signalValues[mySignalStart + 1],
             ctx.signalValues[mySignalStart + 2]
         ); // line circom 8
+        Fr_add!(expaux[3], expaux[4], ctx.circuitConstants[0]); // line circom 8
+        Fr_add!(expaux[2], expaux[3], ctx.circuitConstants[1]); // line circom 8
+        Fr_add!(expaux[1], expaux[2], ctx.circuitConstants[2]); // line circom 8
+        Fr_add!(expaux[0], expaux[1], ctx.circuitConstants[3]); // line circom 8
         Fr_copy!(aux_dest, expaux[0]);
     }
 }
@@ -80,6 +86,18 @@ fn main() {
     }
 
     let mut circuitConstants = vec![F::zero(); get_size_of_constants() as usize];
+    circuitConstants[0] = F::new(
+        BigInteger256::read(
+            &([
+                78, 251, 199, 166, 68, 81, 80, 228, 188, 81, 41, 162, 85, 151, 51, 120, 57, 48, 34,
+                199, 214, 52, 146, 35, 235, 131, 66, 75, 114, 91, 172, 9,
+            ] as [u8; 32])[..],
+        )
+        .unwrap(),
+    );
+    circuitConstants[1] = F::from(1337);
+    circuitConstants[2] = F::from(129);
+    circuitConstants[3] = F::from(1);
 
     let mut componentMemory = Vec::new();
     for _ in 0..get_number_of_components() {

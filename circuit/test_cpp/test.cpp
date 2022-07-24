@@ -19,7 +19,7 @@ uint get_size_of_input_hashmap() {return 256;}
 
 uint get_size_of_witness() {return 4;}
 
-uint get_size_of_constants() {return 0;}
+uint get_size_of_constants() {return 4;}
 
 uint get_size_of_io_map() {return 0;}
 
@@ -45,13 +45,17 @@ u64 myId = ctx_index;
 u32* mySubcomponents = ctx->componentMemory[ctx_index].subcomponents;
 FrElement* circuitConstants = ctx->circuitConstants;
 std::string* listOfTemplateMessages = ctx->listOfTemplateMessages;
-FrElement expaux[3];
+FrElement expaux[7];
 FrElement lvar[0];
 uint sub_component_aux;
 {
 PFrElement aux_dest = &signalValues[mySignalStart + 0];
 // load src
-Fr_mul(&expaux[0],&signalValues[mySignalStart + 1],&signalValues[mySignalStart + 2]); // line circom 8
+Fr_mul(&expaux[4],&signalValues[mySignalStart + 1],&signalValues[mySignalStart + 2]); // line circom 8
+Fr_add(&expaux[3],&expaux[4],&circuitConstants[0]); // line circom 8
+Fr_add(&expaux[2],&expaux[3],&circuitConstants[1]); // line circom 8
+Fr_add(&expaux[1],&expaux[2],&circuitConstants[2]); // line circom 8
+Fr_add(&expaux[0],&expaux[1],&circuitConstants[3]); // line circom 8
 // end load src
 Fr_copy(aux_dest,&expaux[0]);
 }

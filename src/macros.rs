@@ -1,11 +1,11 @@
-use ark_bn254::{Fq as F, FqParameters};
+use ark_bn254::{Fq as F, FqParameters, FrParameters};
 use ark_ff::{BigInteger, Field, Fp256, FpParameters, PrimeField};
 use ark_std::{One, UniformRand, Zero};
 use num_bigint::BigUint;
 use ruint::{aliases::U256, uint};
 
 pub type Fr = U256;
-pub type FieldElement = Fp256<FqParameters>;
+pub type FieldElement = Fp256<FrParameters>;
 
 pub const MODULUS: Fr =
     uint!(21888242871839275222246405745257275088548364400416034343698204186575808495617_U256);

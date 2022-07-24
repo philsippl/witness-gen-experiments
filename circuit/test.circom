@@ -5,7 +5,7 @@ template Multiplier() {
     signal input b;
     signal output c;
 
-    c <== a*b;
+    c <== a*b + 1000000000000000000999999 + 1337 + 129 + 1;
 }
 
 component main = Multiplier();
