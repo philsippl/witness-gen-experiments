@@ -30,7 +30,7 @@ fn main() {
     signalValues[0] = F::one(); // 1 by convention
 
     for (i, w) in args.into_iter().skip(1).enumerate() {
-        signalValues[2 + i] = F::from_str(&w).unwrap();
+        signalValues[get_main_input_signal_start() + i] = F::from_str(&w).unwrap();
     }
 
     let mut circuitConstants = vec![F::zero(); get_size_of_constants() as usize];
@@ -87,6 +87,16 @@ def interpret(line):
     if template in line:
         line = line.replace(template, "_run(ctx_index: usize, ctx: &mut Context)") 
         line = line.replace("void", "fn")
+
+    template = "(Circom_CalcWit* ctx,FrElement* lvar,uint componentFather,FrElement* destination,int destination_size)"
+    if template in line:
+        line = line.replace(template, "(ctx: &mut Context, lvar: Vec<FieldElement>, componentFather: usize, destination: *const FieldElement, destination_size: usize)") 
+        line = line.replace("void", "fn")
+
+    if line.startswith("Fr_copy(&lvarcall"):
+        line = line.replace("Fr_copy(&", "");
+        line = line.replace(",&", " = ");
+        line = line.replace(")", "");
     
     if ("templateName" in line or "new_cmp_name" in line) and "\";" in line:
         line = line.replace("\";", "\".to_string();")
