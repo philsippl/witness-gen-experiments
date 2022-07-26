@@ -94,23 +94,40 @@ def interpret(line):
         line = line.replace("void", "fn")
 
     if line.startswith("Fr_copy(&lvarcall"):
-        line = line.replace("Fr_copy(&", "");
-        line = line.replace(",&", " = ");
-        line = line.replace(")", "");
+        line = line.replace("Fr_copy(&", "")
+        line = line.replace(",&", " = ")
+        line = line.replace(");", ";")
     
     if ("templateName" in line or "new_cmp_name" in line) and "\";" in line:
         line = line.replace("\";", "\".to_string();")
     
     if "new uint[" in line:
         line = line.replace("new uint[", "vec![0;")
-    
+
     if line.startswith("FrElement*") or line.startswith("u64") or line.startswith("std::string") or line.startswith("uint") or line.startswith("u32*") or line.startswith("std::string*") or line.startswith("FrElement") or line.startswith("int"):
         line = "let " + line.split(" ", 1)[1]  
+
+    if line.startswith("let aux_dimensions["):
+        val = re.findall(r'\d+', line)[0]
+        line = line.replace(f"[{val}]", ": Vec<usize>")
+        line = line.replace("{", "vec![")
+        line = line.replace("};", "];")
+
+    if line.startswith("let aux_positions ["):
+        val = re.findall(r'\d+', line)[0]
+        line = line.replace(f" [{val}]", ": Vec<usize>")
+        line = line.replace("{", "vec![")
+        line = line.replace("};", "];")
         
     if line.startswith("for (uint i ="):
         line = line.replace("for (uint i =", "for i in ")
         line = line.replace("; i < ", "..")
         line = line.replace("; i++)", "")
+
+    if line.startswith("for (uint i_aux ="):
+        line = line.replace("for (uint i_aux =", "for i_aux in ")
+        line = line.replace("; i_aux < ", "..")
+        line = line.replace("; i_aux++)", "")
         
     if line.startswith("PFrElement aux_dest"):
         line = line.replace("PFrElement", "let")
@@ -119,6 +136,9 @@ def interpret(line):
     if line.startswith("Fr_"):
         if not line.startswith("Fr_copyn"):
             line = line.replace("&", "")
+        else:
+            line = line.replace("(&", "(&mut ")
+
         line = line.replace("(", "!(", 1)
         
     if "let aux_cmp_num" in line:
@@ -148,8 +168,22 @@ def interpret(line):
         line = line.replace("while(", "while ")
         line = line.replace("){", " {")
 
+    if line.startswith("if("):
+        line = line.replace("if(", "if ")
+        if not "Fr_isTrue" in line:
+            line = line.replace("){", "==1 {")
+        else:
+            line = line.replace("){", " {")
+
+    if "(--" in line: 
+        line = line.replace("(--", "(")
+        line = line.replace(") {", "-1) {")
+
     if "_create(" in line:
         line = line.replace("\",", "\".to_string(),")
+
+    if "ctx.generate_position_array" in line:
+        line = line.replace("ctx.generate_position_array", "&ctx.generate_position_array")
 
     # replace run function 
     line = line.replace("void run(Circom_CalcWit* ctx){", "fn run(ctx: &mut Context){")
@@ -221,4 +255,4 @@ FOOTER = FOOTER.replace("// @TRANSPILER_CONSTANTS", constants_code)
 fout.write(FOOTER)
 fout.close()
 
-os.system(f"cargo fmt -- {OUT_FILE}")
+# os.system(f"cargo fmt -- {OUT_FILE}")

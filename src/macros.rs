@@ -183,7 +183,29 @@ macro_rules! Fr_toInt {
     }};
 }
 
-//Fr_toInt
+macro_rules! Fr_mod {
+    ($o:expr,$a:expr,$n:expr) => {{
+        let t1: U256 = $a.try_into().unwrap();
+        let t2: U256 = $n.try_into().unwrap();
+        $o = t1.reduce_mod(t2).try_into().unwrap();
+    }};
+}
+
+macro_rules! Fr_pow {
+    ($o:expr,$a:expr,$n:expr) => {{
+        $o = $a.pow($n);
+    }};
+}
+
+macro_rules! Fr_idiv {
+    ($o:expr,$a:expr,$b:expr) => {{
+        let t1: U256 = $a.try_into().unwrap();
+        let t2: U256 = $b.try_into().unwrap();
+        $o = (t1  / t2).try_into().unwrap();
+    }};
+}
+
+//TODO: Fr_mod, Fr_idiv, Fr_pow
 
 pub(crate) use Fr_add;
 pub(crate) use Fr_band;
@@ -210,6 +232,9 @@ pub(crate) use Fr_shr;
 pub(crate) use Fr_square;
 pub(crate) use Fr_sub;
 pub(crate) use Fr_toInt;
+pub(crate) use Fr_mod;
+pub(crate) use Fr_pow;
+pub(crate) use Fr_idiv;
 
 pub struct ComponentMemory {
     pub templateId: u32,
@@ -225,4 +250,24 @@ pub struct Context {
     pub componentMemory: Vec<ComponentMemory>,
     pub signalValues: Vec<FieldElement>,
     pub circuitConstants: Vec<FieldElement>,
+}
+
+impl Context {
+    pub fn generate_position_array(
+        &self,
+        dimensions: Vec<usize>,
+        size_dimensions: usize,
+        index: usize,
+    ) -> String {
+        let mut positions: String = "".to_string();
+        let mut index = index;
+        let x = 1u32 != 0;
+        for i in 0..size_dimensions {
+            let last_pos = index % dimensions[size_dimensions - 1 - i];
+            index /= dimensions[size_dimensions - 1 - i];
+            let new_pos = format!("[{}]", last_pos);
+            positions = new_pos + &positions;
+        }
+        positions
+    }
 }
