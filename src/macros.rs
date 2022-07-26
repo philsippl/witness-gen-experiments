@@ -162,6 +162,17 @@ macro_rules! Fr_copy {
     }};
 }
 
+macro_rules! Fr_copyn {
+    ($o:expr,$a:expr, $n:expr) => {{
+        unsafe {
+            for i in 0..$n {
+                *(($o as *mut FieldElement).add(i)) =
+                    *((($a as *const FieldElement) as *mut FieldElement).add(i));
+            }
+        }
+    }};
+}
+
 macro_rules! Fr_toInt {
     ($a:expr) => {{
         if (!$a.is_zero()) {
@@ -180,6 +191,7 @@ pub(crate) use Fr_bnot;
 pub(crate) use Fr_bor;
 pub(crate) use Fr_bxor;
 pub(crate) use Fr_copy;
+pub(crate) use Fr_copyn;
 pub(crate) use Fr_div;
 pub(crate) use Fr_eq;
 pub(crate) use Fr_geq;

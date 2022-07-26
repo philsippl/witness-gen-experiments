@@ -117,7 +117,8 @@ def interpret(line):
         line = line.replace(";", " as *const FieldElement;")
         
     if line.startswith("Fr_"):
-        line = line.replace("&", "")
+        if not line.startswith("Fr_copyn"):
+            line = line.replace("&", "")
         line = line.replace("(", "!(", 1)
         
     if "let aux_cmp_num" in line:
