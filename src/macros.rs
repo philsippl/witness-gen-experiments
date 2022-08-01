@@ -1,8 +1,11 @@
 use ark_bn254::{Fq as F, FqParameters, FrParameters};
 use ark_ff::{BigInteger, Field, Fp256, FpParameters, PrimeField};
 use ark_std::{One, UniformRand, Zero};
+use byteorder::{ReadBytesExt, BigEndian, LittleEndian};
 use num_bigint::BigUint;
 use ruint::{aliases::U256, uint};
+use std::collections::BTreeMap;
+use core::include_bytes;
 
 pub type Fr = U256;
 pub type FieldElement = Fp256<FrParameters>;
@@ -193,7 +196,8 @@ macro_rules! Fr_mod {
 
 macro_rules! Fr_pow {
     ($o:expr,$a:expr,$n:expr) => {{
-        $o = $a.pow($n);
+        let n = Fr_toInt!($n);
+        $o = $a.pow(n);
     }};
 }
 
@@ -236,8 +240,10 @@ pub(crate) use Fr_mod;
 pub(crate) use Fr_pow;
 pub(crate) use Fr_idiv;
 
+use crate::{get_size_of_input_hashmap, get_size_of_io_map};
+
 pub struct ComponentMemory {
-    pub templateId: u32,
+    pub templateId: usize,
     pub templateName: String,
     pub componentName: String,
     pub signalStart: usize,
@@ -250,12 +256,13 @@ pub struct Context {
     pub componentMemory: Vec<ComponentMemory>,
     pub signalValues: Vec<FieldElement>,
     pub circuitConstants: Vec<FieldElement>,
+    pub templateInsId2IOSignalInfo: TemplateInstanceIOMap,
 }
 
 impl Context {
     pub fn generate_position_array(
         &self,
-        dimensions: Vec<usize>,
+        dimensions: &Vec<usize>,
         size_dimensions: usize,
         index: usize,
     ) -> String {
@@ -270,4 +277,52 @@ impl Context {
         }
         positions
     }
+}
+
+/////////////////
+#[derive(Debug)]
+pub struct IODef {
+    pub code: usize,
+    pub offset: usize,
+    pub lengths: Vec<usize>,
+}
+
+pub type InputOutputList = Vec<IODef>;
+pub type TemplateInstanceIOMap = BTreeMap<usize, InputOutputList>;
+
+const DAT_BYTES: &[u8] = include_bytes!("tmp.dat");
+
+pub fn get_btree() -> TemplateInstanceIOMap {
+    let mut bytes = DAT_BYTES;
+    let mut indices = vec![0usize; get_size_of_io_map()];
+    let mut btree: TemplateInstanceIOMap = BTreeMap::new();
+
+    (0..get_size_of_io_map()).for_each(|i| {
+        let t32 = bytes.read_u32::<LittleEndian>().unwrap() as usize;
+        indices[i] = t32;
+    });
+    
+    (0..get_size_of_io_map()).for_each(|i| {
+        let l32 = bytes.read_u32::<LittleEndian>().unwrap() as usize;
+        let mut io_list: InputOutputList = vec![];
+
+        (0..l32).for_each(|_j| {
+            let offset = bytes.read_u32::<LittleEndian>().unwrap() as usize;
+            let len = bytes.read_u32::<LittleEndian>().unwrap() as usize + 1;
+    
+            let mut lengths = vec![0usize; len];
+
+            (1..len).for_each(|k| {
+                lengths[k] = bytes.read_u32::<LittleEndian>().unwrap() as usize;
+            });
+            
+            io_list.push(IODef {
+                code: 0,
+                offset,
+                lengths,
+            });
+        });
+        btree.insert(indices[i], io_list);
+    });
+    btree
 }

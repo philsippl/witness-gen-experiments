@@ -53,12 +53,14 @@ fn main() {
         componentMemory,
         signalValues,
         circuitConstants,
+        templateInsId2IOSignalInfo: get_btree(),
     };
 
     run(&mut ctx);
 
     for i in ctx.signalValues {
-        println!("{}", i);
+        let bi : BigUint = i.into();
+        println!("{} {}", i, bi);
     }
 }
 """
@@ -75,6 +77,13 @@ def interpret(line):
         line = line.replace("()", "() -> usize")
         val = re.findall(r'\d+', line)[0]
         GETTERS[line.split()[1]] = int(val)
+
+    if line.startswith("Circom_TemplateFunction _functionTable["):
+        line = line.replace("Circom_TemplateFunction _functionTable[", "const _functionTable : [fn(usize, &mut Context);")
+        line = line.replace("{", "[")
+
+    if line.endswith("_run };"):
+        line = line.replace("_run };", "_run ];")
     
     # replace create
     template = "_create(uint soffset,uint coffset,Circom_CalcWit* ctx,std::string componentName,uint componentFather)"
@@ -112,6 +121,16 @@ def interpret(line):
         line = line.replace(f"[{val}]", ": Vec<usize>")
         line = line.replace("{", "vec![")
         line = line.replace("};", "];")
+
+    if line.startswith("let map_index_aux["):
+        val = re.findall(r'\d+', line)[0]
+        if "{" in line:
+            line = line.replace(f"[{val}]", ": Vec<usize>")
+            line = line.replace("{", "vec![")
+            line = line.replace("};", "];")
+        else: 
+            line = line.replace("let map_index_aux[", "let mut map_index_aux[")
+            line = line.replace(f"[{val}]", f" = vec![0usize;{val}]")
 
     if line.startswith("let aux_positions ["):
         val = re.findall(r'\d+', line)[0]
@@ -183,7 +202,18 @@ def interpret(line):
         line = line.replace("\",", "\".to_string(),")
 
     if "ctx.generate_position_array" in line:
+        line = line.replace("\"+", "\".to_owned()+")
         line = line.replace("ctx.generate_position_array", "&ctx.generate_position_array")
+
+    if "ctx.templateInsId2IOSignalInfo" in line:
+        line = line.replace("templateInsId2IOSignalInfo[", "templateInsId2IOSignalInfo.get(&")
+        line = line.replace("].defs[", ").unwrap()[")
+
+    if "*_functionTable" in line:
+        line = line.replace("*_functionTable", "_functionTable")
+
+    if "ctx.generate_position_array(aux_dimensions" in line:
+        line = line.replace("ctx.generate_position_array(aux_dimensions", "ctx.generate_position_array(&aux_dimensions")
 
     # replace run function 
     line = line.replace("void run(Circom_CalcWit* ctx){", "fn run(ctx: &mut Context){")
@@ -221,7 +251,7 @@ with open(f"{CIRCUIT_PATH}/{CIRCUIT_NAME}_cpp/{CIRCUIT_NAME}.cpp") as fin:
         line = line.rstrip()
         
         # ignore everything until here
-        if "uint get_main_input_signal_start()" in line:
+        if "Circom_TemplateFunction _functionTable" in line or "uint get_main_input_signal_start()" in line:
             start = True
             
         if not start:
@@ -249,6 +279,15 @@ with open(f"{CIRCUIT_PATH}/{CIRCUIT_NAME}_cpp/{CIRCUIT_NAME}.dat", "rb") as f:
             constants_code += f"circuitConstants[{i}] = F::from({sv});\n"
         else:
             constants_code += f"circuitConstants[{i}] = F::new(BigInteger256::read(&({long_bytes} as [u8; 32])[..]).unwrap());\n"
+
+    # read rest of file and write into tmp dat 
+    fdatout = open("src/tmp.dat", "wb")
+    while True:
+        buf = f.read(1024)
+        if not buf:
+            break
+        fdatout.write(buf)
+    fdatout.close()
 
 FOOTER = FOOTER.replace("// @TRANSPILER_CONSTANTS", constants_code)
 
