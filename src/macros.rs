@@ -197,7 +197,8 @@ macro_rules! Fr_mod {
 macro_rules! Fr_pow {
     ($o:expr,$a:expr,$n:expr) => {{
         let n = Fr_toInt!($n);
-        $o = $a.pow(n);
+        let t1: U256 = $a.try_into().unwrap();
+        $o = t1.pow(n).reduce_mod(MODULUS).try_into().unwrap();
     }};
 }
 

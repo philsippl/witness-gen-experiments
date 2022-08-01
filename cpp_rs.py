@@ -106,7 +106,7 @@ def interpret(line):
         line = line.replace("Fr_copy(&", "")
         line = line.replace(",&", " = ")
         line = line.replace(");", ";")
-    
+
     if ("templateName" in line or "new_cmp_name" in line) and "\";" in line:
         line = line.replace("\";", "\".to_string();")
     

@@ -11,34 +11,33 @@ use ruint::aliases::U256;
 use std::str::FromStr;
 use ark_ff::BigInteger256;
 use ark_ff::FromBytes;
-const _functionTable : [fn(usize, &mut Context);2] = [
-Ark_0_run,
-Multiplier_1_run ];
-fn get_main_input_signal_start() -> usize {return 11;}
-fn get_main_input_signal_no() -> usize {return 2;}
-fn get_total_signal_no() -> usize {return 33;}
-fn get_number_of_components() -> usize {return 2;}
+const _functionTable : [fn(usize, &mut Context);1] = [
+Num2Bits_0_run ];
+fn get_main_input_signal_start() -> usize {return 9;}
+fn get_main_input_signal_no() -> usize {return 1;}
+fn get_total_signal_no() -> usize {return 10;}
+fn get_number_of_components() -> usize {return 1;}
 fn get_size_of_input_hashmap() -> usize {return 256;}
-fn get_size_of_witness() -> usize {return 11;}
+fn get_size_of_witness() -> usize {return 9;}
 fn get_size_of_constants() -> usize {return 4;}
 fn get_size_of_io_map() -> usize {return 0;}
-fn Ark_0_create(soffset: usize, coffset: usize, ctx: &mut Context, componentName: String, componentFather: usize){
+fn Num2Bits_0_create(soffset: usize, coffset: usize, ctx: &mut Context, componentName: String, componentFather: usize){
 ctx.componentMemory[coffset].templateId = 0;
-ctx.componentMemory[coffset].templateName = "Ark".to_string();
+ctx.componentMemory[coffset].templateName = "Num2Bits".to_string();
 ctx.componentMemory[coffset].signalStart = soffset;
-ctx.componentMemory[coffset].inputCounter = 10;
+ctx.componentMemory[coffset].inputCounter = 1;
 ctx.componentMemory[coffset].componentName = componentName;
 ctx.componentMemory[coffset].idFather = componentFather;
 ctx.componentMemory[coffset].subcomponents = vec![0;0];
 }
-fn Ark_0_run(ctx_index: usize, ctx: &mut Context){
+fn Num2Bits_0_run(ctx_index: usize, ctx: &mut Context){
 let mySignalStart = ctx.componentMemory[ctx_index].signalStart;
 let myTemplateName = ctx.componentMemory[ctx_index].templateName.clone();
 let myComponentName = ctx.componentMemory[ctx_index].componentName.clone();
 let myFather = ctx.componentMemory[ctx_index].idFather;
 let myId = ctx_index;
-let mut expaux = vec![F::zero(); 3];
-let mut lvar = vec![F::zero(); 2];
+let mut expaux = vec![F::zero(); 7];
+let mut lvar = vec![F::zero(); 3];
 {
 let aux_dest = &lvar[0] as *const FieldElement;
 Fr_copy!(aux_dest,ctx.circuitConstants[0]);
@@ -47,94 +46,40 @@ Fr_copy!(aux_dest,ctx.circuitConstants[0]);
 let aux_dest = &lvar[1] as *const FieldElement;
 Fr_copy!(aux_dest,ctx.circuitConstants[1]);
 }
-Fr_lt!(expaux[0],lvar[1],ctx.circuitConstants[0]); // line circom 7
+{
+let aux_dest = &lvar[2] as *const FieldElement;
+Fr_copy!(aux_dest,ctx.circuitConstants[1]);
+}
+Fr_lt!(expaux[0],lvar[2],ctx.circuitConstants[0]); // line circom 8
 while Fr_isTrue!(expaux[0]) {
 {
-let aux_dest = &ctx.signalValues[mySignalStart + ((1 * Fr_toInt!(lvar[1])) + 0)] as *const FieldElement;
-Fr_mul!(expaux[0],ctx.signalValues[mySignalStart + ((1 * Fr_toInt!(lvar[1])) + 10)],ctx.circuitConstants[2]); // line circom 8
+let aux_dest = &ctx.signalValues[mySignalStart + ((1 * Fr_toInt!(lvar[2])) + 0)] as *const FieldElement;
+Fr_shr!(expaux[1],ctx.signalValues[mySignalStart + 8],lvar[2]); // line circom 9
+Fr_band!(expaux[0],expaux[1],ctx.circuitConstants[2]); // line circom 9
 Fr_copy!(aux_dest,expaux[0]);
 }
+Fr_sub!(expaux[3],ctx.signalValues[mySignalStart + ((1 * Fr_toInt!(lvar[2])) + 0)],ctx.circuitConstants[2]); // line circom 10
+Fr_mul!(expaux[1],ctx.signalValues[mySignalStart + ((1 * Fr_toInt!(lvar[2])) + 0)],expaux[3]); // line circom 10
+Fr_eq!(expaux[0],expaux[1],ctx.circuitConstants[1]); // line circom 10
 {
 let aux_dest = &lvar[1] as *const FieldElement;
-Fr_add!(expaux[0],lvar[1],ctx.circuitConstants[3]); // line circom 7
+Fr_pow!(expaux[4],ctx.circuitConstants[3],lvar[2]); // line circom 11
+Fr_mul!(expaux[2],ctx.signalValues[mySignalStart + ((1 * Fr_toInt!(lvar[2])) + 0)],expaux[4]); // line circom 11
+Fr_add!(expaux[0],lvar[1],expaux[2]); // line circom 11
 Fr_copy!(aux_dest,expaux[0]);
 }
-Fr_lt!(expaux[0],lvar[1],ctx.circuitConstants[0]); // line circom 7
-}
-}
-fn Multiplier_1_create(soffset: usize, coffset: usize, ctx: &mut Context, componentName: String, componentFather: usize){
-ctx.componentMemory[coffset].templateId = 1;
-ctx.componentMemory[coffset].templateName = "Multiplier".to_string();
-ctx.componentMemory[coffset].signalStart = soffset;
-ctx.componentMemory[coffset].inputCounter = 2;
-ctx.componentMemory[coffset].componentName = componentName;
-ctx.componentMemory[coffset].idFather = componentFather;
-ctx.componentMemory[coffset].subcomponents = vec![0;1];
-}
-fn Multiplier_1_run(ctx_index: usize, ctx: &mut Context){
-let mySignalStart = ctx.componentMemory[ctx_index].signalStart;
-let myTemplateName = ctx.componentMemory[ctx_index].templateName.clone();
-let myComponentName = ctx.componentMemory[ctx_index].componentName.clone();
-let myFather = ctx.componentMemory[ctx_index].idFather;
-let myId = ctx_index;
-let mut expaux = vec![F::zero(); 3];
-let mut lvar = vec![F::zero(); 1];
 {
-let aux_create = 0;
-let mut aux_cmp_num = 0+ctx_index+1;
-let mut csoffset = mySignalStart+12;
-for i in  0..1 {
-let new_cmp_name = "ark".to_string();
-ctx.componentMemory[ctx_index].subcomponents[aux_create+i] = aux_cmp_num;
-Ark_0_create(csoffset,aux_cmp_num,ctx,new_cmp_name,myId);
-csoffset += 20 ;
-aux_cmp_num += 1;
-}
-}
-{
-let aux_dest = &lvar[0] as *const FieldElement;
-Fr_copy!(aux_dest,ctx.circuitConstants[1]);
-}
-Fr_lt!(expaux[0],lvar[0],ctx.circuitConstants[0]); // line circom 20
-while Fr_isTrue!(expaux[0]) {
-{
-let cmp_index_ref = 0;
-{
-let aux_dest = &ctx.signalValues[ctx.componentMemory[ctx.componentMemory[ctx_index].subcomponents[cmp_index_ref]].signalStart + ((1 * Fr_toInt!(lvar[0])) + 10)] as *const FieldElement;
-Fr_copy!(aux_dest,ctx.signalValues[mySignalStart + 10]);
-}
-if !(ctx.componentMemory[ctx.componentMemory[ctx_index].subcomponents[cmp_index_ref]].inputCounter)==1 {
-Ark_0_run(ctx.componentMemory[ctx_index].subcomponents[cmp_index_ref],ctx);
-}
-}
-{
-let aux_dest = &lvar[0] as *const FieldElement;
-Fr_add!(expaux[0],lvar[0],ctx.circuitConstants[3]); // line circom 20
+let aux_dest = &lvar[2] as *const FieldElement;
+Fr_add!(expaux[0],lvar[2],ctx.circuitConstants[2]); // line circom 8
 Fr_copy!(aux_dest,expaux[0]);
 }
-Fr_lt!(expaux[0],lvar[0],ctx.circuitConstants[0]); // line circom 20
+Fr_lt!(expaux[0],lvar[2],ctx.circuitConstants[0]); // line circom 8
 }
-{
-let aux_dest = &lvar[0] as *const FieldElement;
-Fr_copy!(aux_dest,ctx.circuitConstants[1]);
-}
-Fr_lt!(expaux[0],lvar[0],ctx.circuitConstants[0]); // line circom 24
-while Fr_isTrue!(expaux[0]) {
-{
-let aux_dest = &ctx.signalValues[mySignalStart + ((1 * Fr_toInt!(lvar[0])) + 0)] as *const FieldElement;
-Fr_copy!(aux_dest,ctx.signalValues[ctx.componentMemory[ctx.componentMemory[ctx_index].subcomponents[0]].signalStart + ((1 * Fr_toInt!(lvar[0])) + 0)]);
-}
-{
-let aux_dest = &lvar[0] as *const FieldElement;
-Fr_add!(expaux[0],lvar[0],ctx.circuitConstants[3]); // line circom 24
-Fr_copy!(aux_dest,expaux[0]);
-}
-Fr_lt!(expaux[0],lvar[0],ctx.circuitConstants[0]); // line circom 24
-}
+Fr_eq!(expaux[0],lvar[1],ctx.signalValues[mySignalStart + 8]); // line circom 14
 }
 fn run(ctx: &mut Context){
-Multiplier_1_create(1,0,ctx,"main".to_string(),0);
-Multiplier_1_run(0,ctx);
+Num2Bits_0_create(1,0,ctx,"main".to_string(),0);
+Num2Bits_0_run(0,ctx);
 }
 
 fn main() {
@@ -147,10 +92,10 @@ fn main() {
     }
 
     let mut circuitConstants = vec![F::zero(); get_size_of_constants() as usize];
-    circuitConstants[0] = F::from(10);
+    circuitConstants[0] = F::from(8);
 circuitConstants[1] = F::from(0);
-circuitConstants[2] = F::from(2);
-circuitConstants[3] = F::from(1);
+circuitConstants[2] = F::from(1);
+circuitConstants[3] = F::from(2);
 
 
     let mut componentMemory = Vec::new();
