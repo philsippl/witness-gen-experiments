@@ -179,7 +179,8 @@ macro_rules! Fr_copyn {
 macro_rules! Fr_toInt {
     ($a:expr) => {{
         if (!$a.is_zero()) {
-            Into::<BigUint>::into($a).to_u32_digits()[0] as usize
+            let t1: U256 = $a.try_into().unwrap();
+            t1.as_limbs()[0] as usize
         } else {
             0
         }
