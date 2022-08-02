@@ -190,14 +190,31 @@ def interpret(line):
     if line.startswith("if("):
         line = line.replace("if(", "if ")
         if not "Fr_isTrue" in line:
-            line = line.replace("){", "==1 {")
+            line = line.replace("){", "==1{")
         else:
-            line = line.replace("){", " {")
+            line = line.replace("){", "{")
 
-    if "(--" in line: 
-        line = line.replace("(--", "(")
-        line = line.replace(") {", "-1) {")
+        var = ""
+        if "(--" in line: 
+            start = line.find("(--")
+            end = line.find(")")
+            var = line[start+3:end]
 
+            start = line.find("[")+1
+            end = line.find("]")+1
+            idx = line[start:end]
+
+            line = line.replace("(--", "(")
+            # line = line.replace(")", "-1)")
+
+        line = line.replace("!", "!(")
+        line = line.replace("==1{", "==1){")
+
+        if var != "":
+            tmp = var.replace(idx, "idx")
+            line = f"\nlet idx={idx};\n{tmp} -= 1;\n" + line
+
+        
     if "_create(" in line:
         line = line.replace("\",", "\".to_string(),")
 

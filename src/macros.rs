@@ -210,6 +210,13 @@ macro_rules! Fr_idiv {
     }};
 }
 
+macro_rules! X_dec {
+    ($o:expr) => {{
+        $o -= 1;
+        $o
+    }};
+}
+
 //TODO: Fr_mod, Fr_idiv, Fr_pow
 
 pub(crate) use Fr_add;
@@ -240,6 +247,7 @@ pub(crate) use Fr_toInt;
 pub(crate) use Fr_mod;
 pub(crate) use Fr_pow;
 pub(crate) use Fr_idiv;
+pub(crate) use X_dec;
 
 use crate::{get_size_of_input_hashmap, get_size_of_io_map};
 
