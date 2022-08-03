@@ -1,5 +1,5 @@
 use byteorder::{ReadBytesExt, LittleEndian};
-use ruint::{aliases::U256, uint};
+use ruint::{aliases::{U256, U64}, uint};
 use std::collections::BTreeMap;
 use core::include_bytes;
 
@@ -9,20 +9,30 @@ pub type FieldElement = U256;
 pub const MODULUS: Fr =
     uint!(21888242871839275222246405745257275088548364400416034343698204186575808495617_U256);
 
+pub const INV: u64 = 14042775128853446655;
+
+pub const R: Fr = uint!(0x0e0a77c19a07df2f666ea36f7879462e36fc76959f60cd29ac96341c4ffffffb_U256);
+
 macro_rules! Fr_mul {
     ($o:expr,$a:expr,$b:expr) => {{
-        $o = ($a * $b).reduce_mod(MODULUS);
+        // $o = $a.mul_mod($b, MODULUS);
+        // let ar = $a.mul_mod(R, MODULUS);
+        // let br = $b.mul_mod(R, MODULUS);
+        // let prod = ar.mul_redc(br, MODULUS, INV);
+        // $o = prod.mul_redc(uint!(1_U256), MODULUS, INV);
+        $o = $a.mul_mod($b, MODULUS);
     }};
 }
 
 macro_rules! Fr_add {
     ($o:expr,$a:expr,$b:expr) => {{
-        $o = ($a + $b).reduce_mod(MODULUS);
+        $o = $a.add_mod($b, MODULUS);
     }};
 }
 
 macro_rules! Fr_sub {
     ($o:expr,$a:expr,$b:expr) => {{
+        // $o = $a.add_mod(-$b, MODULUS);
         $o = ($a - $b).reduce_mod(MODULUS);
     }};
 }
@@ -41,13 +51,13 @@ macro_rules! Fr_inv {
 
 macro_rules! Fr_div {
     ($o:expr,$a:expr,$b:expr) => {{
-        $o = $a * Fr_inv!($b);
+        $o = $a.mul_mod(Fr_inv!($b), MODULUS);
     }};
 }
 
 macro_rules! Fr_square {
     ($o:expr,$a:expr) => {{
-        $o = ($a * $a).reduce_mod(MODULUS);
+        $o = $a.mul_mod($a, MODULUS);
     }};
 }
 
@@ -89,39 +99,50 @@ macro_rules! Fr_bnot {
     }};
 }
 
+macro_rules! Fr_fromBool {
+    ($a:expr) => {{
+        if ($a) {
+            uint!(1_U256)
+        } else {
+            uint!(0_U256)
+        }
+    }};
+}
+
+
 macro_rules! Fr_eq {
     ($o:expr,$a:expr,$b:expr) => {{
-        $o = ($a == $b).into();
+        $o = Fr_fromBool!($a == $b);
     }};
 }
 
 macro_rules! Fr_neq {
     ($o:expr,$a:expr,$b:expr) => {{
-        $o = ($a != $b).into();
+        $o = Fr_fromBool!($a != $b);
     }};
 }
 
 macro_rules! Fr_lt {
     ($o:expr,$a:expr,$b:expr) => {{
-        $o = ($a < $b).into();
+        $o = Fr_fromBool!($a < $b);
     }};
 }
 
 macro_rules! Fr_leq {
     ($o:expr,$a:expr,$b:expr) => {{
-        $o = ($a <= $b).into();
+        $o = Fr_fromBool!($a <= $b);
     }};
 }
 
 macro_rules! Fr_gt {
     ($o:expr,$a:expr,$b:expr) => {{
-        $o = ($a > $b).into();
+        $o = Fr_fromBool!($a > $b);
     }};
 }
 
 macro_rules! Fr_geq {
     ($o:expr,$a:expr,$b:expr) => {{
-        $o = ($a >= $b).into();
+        $o = Fr_fromBool!($a >= $b);
     }};
 }
 
@@ -133,13 +154,13 @@ macro_rules! Fr_isTrue {
 
 macro_rules! Fr_land {
     ($o:expr,$a:expr,$b:expr) => {{
-        $o = (Fr_isTrue!($a * $b)).into();
+        $o = Fr_fromBool!(Fr_isTrue!($a * $b));
     }};
 }
 
 macro_rules! Fr_lor {
     ($o:expr,$a:expr,$b:expr) => {{
-        $o = (Fr_isTrue!($a + $b)).into();
+        $o = Fr_fromBool!(Fr_isTrue!($a + $b));
     }};
 }
 
@@ -177,7 +198,7 @@ macro_rules! Fr_mod {
 macro_rules! Fr_pow {
     ($o:expr,$a:expr,$n:expr) => {{
         let n = Fr_toInt!($n);
-        $o = $a.pow(n).reduce_mod(MODULUS);
+        $o = $a.pow_mod(n, MODULUS);
     }};
 }
 
@@ -215,6 +236,8 @@ pub(crate) use Fr_toInt;
 pub(crate) use Fr_mod;
 pub(crate) use Fr_pow;
 pub(crate) use Fr_idiv;
+pub(crate) use Fr_fromBool;
+
 
 use crate::{get_size_of_input_hashmap, get_size_of_io_map};
 

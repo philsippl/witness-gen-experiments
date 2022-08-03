@@ -20,6 +20,7 @@ use std::str::FromStr;
 use ark_bn254::Fr as F;
 use ark_ff::BigInteger256;
 use ark_ff::FromBytes;
+use ruint::aliases::U64;
 """
 FOOTER = """
 fn main() {
@@ -293,7 +294,7 @@ with open(f"{CIRCUIT_PATH}/{CIRCUIT_NAME}_cpp/{CIRCUIT_NAME}.dat", "rb") as f:
         if not is_long:
             constants_code += f"circuitConstants[{i}] = uint!({sv}_U256);\n"
         else:
-            constants_code += f"circuitConstants[{i}] = F::new(BigInteger256::read(&({long_bytes} as [u8; 32])[..]).unwrap());\n"
+            constants_code += f"circuitConstants[{i}] = F::new(BigInteger256::read(&({long_bytes} as [u8; 32])[..]).unwrap()).into();\n"
 
     # read rest of file and write into tmp dat 
     fdatout = open("src/tmp.dat", "wb")
