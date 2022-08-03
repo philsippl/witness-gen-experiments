@@ -13,27 +13,25 @@ HEADER = """
 mod macros;
 use std::env;
 use crate::macros::*;
-use ark_bn254::Fr as F;
-use ark_ff::Zero;
-use ark_std::One;
-use ark_ff::Field;
 use num_bigint::BigUint;
-use ruint::aliases::U256;
+use ruint::Uint;
+use ruint::uint;
 use std::str::FromStr;
+use ark_bn254::Fr as F;
 use ark_ff::BigInteger256;
 use ark_ff::FromBytes;
 """
 FOOTER = """
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let mut signalValues = vec![F::zero(); get_total_signal_no() as usize];
-    signalValues[0] = F::one(); // 1 by convention
+    let mut signalValues = vec![uint!(0_U256); get_total_signal_no() as usize];
+    signalValues[0] = uint!(1_U256); // 1 by convention
 
     for (i, w) in args.into_iter().skip(1).enumerate() {
-        signalValues[get_main_input_signal_start() + i] = F::from_str(&w).unwrap();
+        signalValues[get_main_input_signal_start() + i] = Uint::from_str(&w).unwrap();
     }
 
-    let mut circuitConstants = vec![F::zero(); get_size_of_constants() as usize];
+    let mut circuitConstants = vec![uint!(0_U256); get_size_of_constants() as usize];
     // @TRANSPILER_CONSTANTS
 
     let mut componentMemory = Vec::new();
@@ -177,11 +175,11 @@ def interpret(line):
         
     if line.startswith("let expaux"):
         line = line.replace("let expaux", "let mut expaux")
-        line = line.replace("[", " = vec![F::zero(); ")
+        line = line.replace("[", " = vec![uint!(0_U256); ")
         
     if line.startswith("let lvar"):
         line = line.replace("let lvar", "let mut lvar")
-        line = line.replace("[", " = vec![F::zero(); ")
+        line = line.replace("[", " = vec![uint!(0_U256); ")
         
     if line.startswith("while("):
         line = line.replace("while(", "while ")
@@ -293,7 +291,7 @@ with open(f"{CIRCUIT_PATH}/{CIRCUIT_NAME}_cpp/{CIRCUIT_NAME}.dat", "rb") as f:
         is_long = bool(typ & 0x80000000)
         # print(f"is_long = {is_long}, short_val = {sv}, type = {typ}, long_val = {long_bytes}")
         if not is_long:
-            constants_code += f"circuitConstants[{i}] = F::from({sv});\n"
+            constants_code += f"circuitConstants[{i}] = uint!({sv}_U256);\n"
         else:
             constants_code += f"circuitConstants[{i}] = F::new(BigInteger256::read(&({long_bytes} as [u8; 32])[..]).unwrap());\n"
 

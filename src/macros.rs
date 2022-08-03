@@ -1,105 +1,91 @@
-use ark_bn254::{Fq as F, FqParameters, FrParameters};
-use ark_ff::{BigInteger, Field, Fp256, FpParameters, PrimeField};
-use ark_std::{One, UniformRand, Zero};
-use byteorder::{ReadBytesExt, BigEndian, LittleEndian};
-use num_bigint::BigUint;
+use byteorder::{ReadBytesExt, LittleEndian};
 use ruint::{aliases::U256, uint};
 use std::collections::BTreeMap;
 use core::include_bytes;
 
 pub type Fr = U256;
-pub type FieldElement = Fp256<FrParameters>;
+pub type FieldElement = U256;
 
 pub const MODULUS: Fr =
     uint!(21888242871839275222246405745257275088548364400416034343698204186575808495617_U256);
 
 macro_rules! Fr_mul {
     ($o:expr,$a:expr,$b:expr) => {{
-        $o = $a * $b
+        $o = ($a * $b).reduce_mod(MODULUS);
     }};
 }
 
 macro_rules! Fr_add {
     ($o:expr,$a:expr,$b:expr) => {{
-        $o = $a + $b
+        $o = ($a + $b).reduce_mod(MODULUS);
     }};
 }
 
 macro_rules! Fr_sub {
     ($o:expr,$a:expr,$b:expr) => {{
-        $o = $a - $b
+        $o = ($a - $b).reduce_mod(MODULUS);
     }};
 }
 
 macro_rules! Fr_neg {
     ($o:expr,$a:expr) => {{
-        $o = -$a
+        $o = -$a;
     }};
 }
 
 macro_rules! Fr_inv {
     ($o:expr,$a:expr) => {{
-        $o = $a.inverse().unwrap();
+        $o = $a.inv_mod(MODULUS).unwrap();
     }};
 }
 
 macro_rules! Fr_div {
     ($o:expr,$a:expr,$b:expr) => {{
-        let tmp = $b.inverse().unwrap();
-        $o = $a * tmp;
+        $o = $a * Fr_inv!($b);
     }};
 }
 
 macro_rules! Fr_square {
     ($o:expr,$a:expr) => {{
-        $o = $a * $a
+        $o = ($a * $a).reduce_mod(MODULUS);
     }};
 }
 
 macro_rules! Fr_shl {
     ($o:expr,$a:expr,$n:expr) => {{
-        let t1: U256 = $a.try_into().unwrap();
         let n = Fr_toInt!($n);
-        $o = (t1 << n).reduce_mod(MODULUS).try_into().unwrap();
+        $o = ($a << n).reduce_mod(MODULUS);
     }};
 }
 
 macro_rules! Fr_shr {
     ($o:expr,$a:expr,$n:expr) => {{
-        let t1: U256 = $a.try_into().unwrap();
         let n = Fr_toInt!($n);
-        $o = (t1 >> n).reduce_mod(MODULUS).try_into().unwrap();
+        $o = (t1 >> n).reduce_mod(MODULUS);
     }};
 }
 
 macro_rules! Fr_band {
     ($o:expr,$a:expr,$b:expr) => {{
-        let t1: U256 = $a.try_into().unwrap();
-        let t2: U256 = $b.try_into().unwrap();
-        $o = (t1 & t2).reduce_mod(MODULUS).try_into().unwrap();
+        $o = ($a & $b).reduce_mod(MODULUS);
     }};
 }
 
 macro_rules! Fr_bor {
     ($o:expr,$a:expr,$b:expr) => {{
-        let t1: U256 = $a.try_into().unwrap();
-        let t2: U256 = $b.try_into().unwrap();
-        $o = (t1 | t2).reduce_mod(MODULUS).try_into().unwrap();
+        $o = ($a | $b).reduce_mod(MODULUS);
     }};
 }
 
 macro_rules! Fr_bxor {
     ($o:expr,$a:expr,$b:expr) => {{
-        let t1: U256 = $a.try_into().unwrap();
-        let t2: U256 = $b.try_into().unwrap();
-        $o = (t1 ^ t2).reduce_mod(MODULUS).try_into().unwrap();
+        $o = ($a ^ $b).reduce_mod(MODULUS);
     }};
 }
 
 macro_rules! Fr_bnot {
     ($o:expr,$a:expr) => {{
-        let t1: U256 = $a.try_into().unwrap();
-        $o = (!t1).reduce_mod(MODULUS).try_into().unwrap();
+        $o = (!$a).reduce_mod(MODULUS);
     }};
 }
 
@@ -141,19 +127,19 @@ macro_rules! Fr_geq {
 
 macro_rules! Fr_isTrue {
     ($a:expr) => {{
-        $a.is_one()
+        $a == uint!(1_U256)
     }};
 }
 
 macro_rules! Fr_land {
     ($o:expr,$a:expr,$b:expr) => {{
-        $o = (!($a * $b).is_zero()).into();
+        $o = (Fr_isTrue!($a * $b)).into();
     }};
 }
 
 macro_rules! Fr_lor {
     ($o:expr,$a:expr,$b:expr) => {{
-        $o = (!($a + $b).is_zero()).into();
+        $o = (Fr_isTrue!($a + $b)).into();
     }};
 }
 
@@ -178,47 +164,28 @@ macro_rules! Fr_copyn {
 
 macro_rules! Fr_toInt {
     ($a:expr) => {{
-        if (!$a.is_zero()) {
-            let t1: U256 = $a.try_into().unwrap();
-            t1.as_limbs()[0] as usize
-        } else {
-            0
-        }
+        $a.as_limbs()[0] as usize
     }};
 }
 
 macro_rules! Fr_mod {
     ($o:expr,$a:expr,$n:expr) => {{
-        let t1: U256 = $a.try_into().unwrap();
-        let t2: U256 = $n.try_into().unwrap();
-        $o = t1.reduce_mod(t2).try_into().unwrap();
+        $o = $a.reduce_mod($b);
     }};
 }
 
 macro_rules! Fr_pow {
     ($o:expr,$a:expr,$n:expr) => {{
         let n = Fr_toInt!($n);
-        let t1: U256 = $a.try_into().unwrap();
-        $o = t1.pow(n).reduce_mod(MODULUS).try_into().unwrap();
+        $o = $a.pow(n).reduce_mod(MODULUS);
     }};
 }
 
 macro_rules! Fr_idiv {
     ($o:expr,$a:expr,$b:expr) => {{
-        let t1: U256 = $a.try_into().unwrap();
-        let t2: U256 = $b.try_into().unwrap();
-        $o = (t1  / t2).try_into().unwrap();
+        $o = $a / $b
     }};
 }
-
-macro_rules! X_dec {
-    ($o:expr) => {{
-        $o -= 1;
-        $o
-    }};
-}
-
-//TODO: Fr_mod, Fr_idiv, Fr_pow
 
 pub(crate) use Fr_add;
 pub(crate) use Fr_band;
@@ -248,7 +215,6 @@ pub(crate) use Fr_toInt;
 pub(crate) use Fr_mod;
 pub(crate) use Fr_pow;
 pub(crate) use Fr_idiv;
-pub(crate) use X_dec;
 
 use crate::{get_size_of_input_hashmap, get_size_of_io_map};
 
