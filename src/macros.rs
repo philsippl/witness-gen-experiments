@@ -1,7 +1,9 @@
+use ark_ff::{BigInteger256, FromBytes};
 use byteorder::{ReadBytesExt, LittleEndian};
-use ruint::{aliases::{U256, U64}, uint};
+use ruint::{aliases::{U256, U64}, uint, Uint};
 use std::collections::BTreeMap;
 use core::include_bytes;
+use ark_bn254::Fr as F;
 
 pub type Fr = U256;
 pub type FieldElement = U256;
@@ -13,14 +15,25 @@ pub const INV: u64 = 14042775128853446655;
 
 pub const R: Fr = uint!(0x0e0a77c19a07df2f666ea36f7879462e36fc76959f60cd29ac96341c4ffffffb_U256);
 
+/*
+    # use ruint::{uint, Uint, aliases::*};
+    /// # uint!{
+    /// # let modulus = 21888242871839275222246405745257275088548364400416034343698204186575808495617_U256;
+    /// let inv = U64::wrapping_from(modulus).inv_ring().unwrap().wrapping_neg().to();
+    /// let prod = 5_U256.mul_redc(6_U256, modulus, inv);
+    /// # assert_eq!(inv.wrapping_mul(modulus.wrapping_to()), u64::MAX);
+    /// # assert_eq!(inv, 0xc2e1f593efffffff);
+    /// # }
+*/
+
 macro_rules! Fr_mul {
     ($o:expr,$a:expr,$b:expr) => {{
-        // $o = $a.mul_mod($b, MODULUS);
+        $o = $a.mul_mod($b, MODULUS);
         // let ar = $a.mul_mod(R, MODULUS);
         // let br = $b.mul_mod(R, MODULUS);
         // let prod = ar.mul_redc(br, MODULUS, INV);
         // $o = prod.mul_redc(uint!(1_U256), MODULUS, INV);
-        $o = $a.mul_mod($b, MODULUS);
+        // $o = $a.add_mod($b, MODULUS);
     }};
 }
 
@@ -239,7 +252,7 @@ pub(crate) use Fr_idiv;
 pub(crate) use Fr_fromBool;
 
 
-use crate::{get_size_of_input_hashmap, get_size_of_io_map};
+use crate::{get_size_of_input_hashmap, get_size_of_io_map, get_size_of_constants};
 
 pub struct ComponentMemory {
     pub templateId: usize,
@@ -289,7 +302,7 @@ pub struct IODef {
 pub type InputOutputList = Vec<IODef>;
 pub type TemplateInstanceIOMap = BTreeMap<usize, InputOutputList>;
 
-const DAT_BYTES: &[u8] = include_bytes!("tmp.dat");
+const DAT_BYTES: &[u8] = include_bytes!("iosignals.dat");
 
 pub fn get_btree() -> TemplateInstanceIOMap {
     let mut bytes = DAT_BYTES;
@@ -324,4 +337,24 @@ pub fn get_btree() -> TemplateInstanceIOMap {
         btree.insert(indices[i], io_list);
     });
     btree
+}
+
+const CONSTANTS_DAT_BYTES: &[u8] = include_bytes!("constants.dat");
+
+pub fn get_constants() -> Vec<FieldElement> {
+    let mut bytes = CONSTANTS_DAT_BYTES;
+    let mut constants = vec![uint!(0_U256); get_size_of_constants()];
+    for i in 0..get_size_of_constants() {
+        let sv = bytes.read_i32::<LittleEndian>().unwrap() as i32;
+        let typ = bytes.read_u32::<LittleEndian>().unwrap() as u32;
+
+        let bi = BigInteger256::read(&mut bytes).unwrap();
+        if typ == 0 {
+            constants[i] = Uint::from(sv);
+        } else {
+            constants[i] = F::new(bi).into();
+        }
+        println!("constant {}: {}",i, constants[i]);   
+    }
+    return constants;
 }

@@ -32,8 +32,7 @@ fn main() {
         signalValues[get_main_input_signal_start() + i] = Uint::from_str(&w).unwrap();
     }
 
-    let mut circuitConstants = vec![uint!(0_U256); get_size_of_constants() as usize];
-    // @TRANSPILER_CONSTANTS
+    let circuitConstants = get_constants();
 
     let mut componentMemory = Vec::new();
     for _ in 0..get_number_of_components() {
@@ -286,26 +285,20 @@ with open(f"{CIRCUIT_PATH}/{CIRCUIT_NAME}_cpp/{CIRCUIT_NAME}.dat", "rb") as f:
     
     # we're only here for the constants:
     constants_code = ""
+    fdatout = open("src/constants.dat", "wb")
     for i in range(0,GETTERS["get_size_of_constants()"]):
-        sv, typ = struct.unpack('<iI', bytearray(f.read(8)))
-        long_bytes = list(bytearray(f.read(32)))
-        is_long = bool(typ & 0x80000000)
-        # print(f"is_long = {is_long}, short_val = {sv}, type = {typ}, long_val = {long_bytes}")
-        if not is_long:
-            constants_code += f"circuitConstants[{i}] = uint!({sv}_U256);\n"
-        else:
-            constants_code += f"circuitConstants[{i}] = F::new(BigInteger256::read(&({long_bytes} as [u8; 32])[..]).unwrap()).into();\n"
+        buf = f.read(40)
+        fdatout.write(buf)
+    fdatout.close()
 
     # read rest of file and write into tmp dat 
-    fdatout = open("src/tmp.dat", "wb")
+    fdatout = open("src/iosignals.dat", "wb")
     while True:
         buf = f.read(1024)
         if not buf:
             break
         fdatout.write(buf)
     fdatout.close()
-
-FOOTER = FOOTER.replace("// @TRANSPILER_CONSTANTS", constants_code)
 
 fout.write(FOOTER)
 fout.close()
