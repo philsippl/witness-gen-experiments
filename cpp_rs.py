@@ -97,7 +97,7 @@ def interpret(line):
 
     template = "(Circom_CalcWit* ctx,FrElement* lvar,uint componentFather,FrElement* destination,int destination_size)"
     if template in line:
-        line = line.replace(template, "(ctx: &mut Context, lvar: Vec<FieldElement>, componentFather: usize, destination: *const FieldElement, destination_size: usize)") 
+        line = line.replace(template, "(ctx: &mut Context, lvar: &mut Vec<FieldElement>, componentFather: usize, destination: *const FieldElement, destination_size: usize)") 
         line = line.replace("void", "fn")
 
     if line.startswith("Fr_copy(&lvarcall"):
@@ -212,6 +212,8 @@ def interpret(line):
             tmp = var.replace(idx, "idx")
             line = f"\nlet idx={idx};\n{tmp} -= 1;\n" + line
 
+    if "(ctx,lvarcall," in line:
+        line = line.replace("(ctx,lvarcall,", "(ctx,&mut lvarcall,")
         
     if "_create(" in line:
         line = line.replace("\",", "\".to_string(),")
@@ -301,6 +303,31 @@ with open(f"{CIRCUIT_PATH}/{CIRCUIT_NAME}_cpp/{CIRCUIT_NAME}.dat", "rb") as f:
     fdatout.close()
 
 fout.write(FOOTER)
+fout.close()
+
+# additional processing
+
+# {
+# let aux_dest = &lvar[41] as *const FieldElement;
+# Fr_copy!(aux_dest,ctx.circuitConstants[326]);
+# }
+
+with open(OUT_FILE, 'r') as file:
+    data = file.read()
+
+rex = """({
+let aux_dest = &lvar\[[0-9]+\] as \*const FieldElement;
+Fr_copy!\(aux_dest,ctx\.circuitConstants\[[0-9]+\]\);
+})"""
+codes = re.findall(rex, data)
+print(len(codes))
+for code in codes:
+    vals = re.findall(r'\d+', code)
+    new_code = f"lvar[{vals[0]}] = ctx.circuitConstants[{vals[1]}];"
+    data = data.replace(code, new_code)
+
+fout = open(OUT_FILE, "w")
+fout.write(data)
 fout.close()
 
 # os.system(f"cargo fmt -- {OUT_FILE}")
