@@ -315,17 +315,71 @@ fout.close()
 with open(OUT_FILE, 'r') as file:
     data = file.read()
 
+def get_template(i, j):
+    return f"""{{
+let aux_dest = &lvar[{i}] as *const FieldElement;
+Fr_copy!(aux_dest,ctx.circuitConstants[{j}]);
+}}
+"""
+
+def is_next(i0, j0, i1, j1):
+    t1 = get_template(i0, j0)
+    t2 = get_template(i1, j1)
+    if data.index(t2) - data.index(t1) == len(t1):
+        return True
+    return False
+
 rex = """({
 let aux_dest = &lvar\[[0-9]+\] as \*const FieldElement;
 Fr_copy!\(aux_dest,ctx\.circuitConstants\[[0-9]+\]\);
 })"""
-codes = re.findall(rex, data)
-print(len(codes))
-for code in codes:
-    vals = re.findall(r'\d+', code)
-    new_code = f"lvar[{vals[0]}] = ctx.circuitConstants[{vals[1]}];"
-    data = data.replace(code, new_code)
 
+cc = [list(map(int, re.findall(r'\d+', code))) for code in re.findall(rex, data)]
+
+for i in range(0, len(cc)):
+    if cc[i] == None:
+        continue
+    
+    if i+2<len(cc) and cc[i][1]+1==cc[i+1][1] and is_next(cc[i][0], cc[i][1], cc[i+1][0], cc[i+1][1]):
+        start_i = cc[i][0]
+        start_j = cc[i][1]
+        j = 0
+        old_code = ""
+        while True:
+            old_code += get_template(cc[i+j][0], cc[i+j][1])
+            val = cc[i+j][1]
+            if i+j+1 < len(cc):
+                next_line = is_next(cc[i+j][0], cc[i+j][1], cc[i+j+1][0], cc[i+j+1][1])
+            else:
+                next_line = False
+            cc[i+j] = None
+            j += 1
+            if i+j >= len(cc) or cc[i+j][1]-val != 1 or not next_line:
+                break 
+        new_code = f"for i in 0..{j} {{lvar[i+{start_i}]=ctx.circuitConstants[{start_j}+i];}}\n"
+    elif i+2<len(cc) and cc[i][1]+2==cc[i+1][1] and is_next(cc[i][0], cc[i][1], cc[i+1][0], cc[i+1][1]):
+        start_i = cc[i][0]
+        start_j = cc[i][1]
+        j = 0
+        old_code = ""
+        while True:
+            old_code += get_template(cc[i+j][0], cc[i+j][1])
+            val = cc[i+j][1]
+            if i+j+1 < len(cc):
+                next_line = is_next(cc[i+j][0], cc[i+j][1], cc[i+j+1][0], cc[i+j+1][1])
+            else:
+                next_line = False
+            cc[i+j] = None
+            j += 1
+            if i+j >= len(cc) or cc[i+j][1]-val != 2 or not next_line:
+                break 
+        new_code = f"for i in 0..{j} {{lvar[i+{start_i}]=ctx.circuitConstants[{start_j}+(2*i)];}}\n"
+    else:
+        old_code = get_template(cc[i][0], cc[i][1])
+        new_code = f"lvar[{cc[i][0]}]=ctx.circuitConstants[{cc[i][1]}];\n"
+    
+    data = data.replace(old_code, new_code, 1)
+        
 fout = open(OUT_FILE, "w")
 fout.write(data)
 fout.close()

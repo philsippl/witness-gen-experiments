@@ -354,7 +354,6 @@ pub fn get_constants() -> Vec<FieldElement> {
         } else {
             constants[i] = F::new(bi).into();
         }
-        println!("constant {}: {}",i, constants[i]);   
     }
     return constants;
 }
