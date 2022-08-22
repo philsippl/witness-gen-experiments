@@ -26,10 +26,10 @@ FOOTER = """
 fn main() {
     let args: Vec<String> = env::args().collect();
     let mut signalValues = vec![uint!(0_U256); get_total_signal_no() as usize];
-    signalValues[0] = uint!(1_U256); // 1 by convention
+    signalValues[0] = uint!(1_U256).mul_mod(R, MODULUS);
 
     for (i, w) in args.into_iter().skip(1).enumerate() {
-        signalValues[get_main_input_signal_start() + i] = Uint::from_str(&w).unwrap();
+        signalValues[get_main_input_signal_start() + i] = Uint::from_str(&w).unwrap().mul_mod(R, MODULUS);
     }
 
     let circuitConstants = get_constants();
@@ -56,10 +56,7 @@ fn main() {
 
     run(&mut ctx);
 
-    for i in ctx.signalValues {
-        let bi : BigUint = i.into();
-        println!("{} {}", i, bi);
-    }
+    convert_signals(&ctx.signalValues);
 }
 """
 

@@ -1,4 +1,5 @@
-use ark_ff::{BigInteger256, FromBytes};
+use ark_ff::{BigInteger256, FromBytes, Field};
+use ark_serialize::Read;
 use byteorder::{ReadBytesExt, LittleEndian};
 use ruint::{aliases::{U256, U64}, uint, Uint};
 use std::collections::BTreeMap;
@@ -28,12 +29,7 @@ pub const R: Fr = uint!(0x0e0a77c19a07df2f666ea36f7879462e36fc76959f60cd29ac9634
 
 macro_rules! Fr_mul {
     ($o:expr,$a:expr,$b:expr) => {{
-        $o = $a.mul_mod($b, MODULUS);
-        // let ar = $a.mul_mod(R, MODULUS);
-        // let br = $b.mul_mod(R, MODULUS);
-        // let prod = ar.mul_redc(br, MODULUS, INV);
-        // $o = prod.mul_redc(uint!(1_U256), MODULUS, INV);
-        // $o = $a.add_mod($b, MODULUS);
+        $o = $a.mul_redc($b, MODULUS, INV);
     }};
 }
 
@@ -59,44 +55,58 @@ macro_rules! Fr_neg {
 macro_rules! Fr_inv {
     ($o:expr,$a:expr) => {{
         $o = $a.inv_mod(MODULUS).unwrap();
+        $o = $o.mul_mod(R, MODULUS);
+        $o = $o.mul_mod(R, MODULUS);
     }};
 }
 
 macro_rules! Fr_div {
     ($o:expr,$a:expr,$b:expr) => {{
-        $o = $a.mul_mod(Fr_inv!($b), MODULUS);
+        let tmp = $b.inv_mod(MODULUS).unwrap();
+        $o = $a.mul_mod(tmp, MODULUS);
+        $o = $o.mul_mod(R, MODULUS);
     }};
 }
 
 macro_rules! Fr_square {
     ($o:expr,$a:expr) => {{
-        $o = $a.mul_mod($a, MODULUS);
+        Fr_mul!($o, $a, $a);
     }};
 }
 
 macro_rules! Fr_shl {
     ($o:expr,$a:expr,$n:expr) => {{
+        $a = $a.mul_redc(uint!(1_U256), MODULUS, INV);
         let n = Fr_toInt!($n);
         $o = ($a << n).reduce_mod(MODULUS);
+        $o = $o.mul_mod(R, MODULUS);
     }};
 }
 
 macro_rules! Fr_shr {
     ($o:expr,$a:expr,$n:expr) => {{
+        $a = $a.mul_redc(uint!(1_U256), MODULUS, INV);
         let n = Fr_toInt!($n);
         $o = (t1 >> n).reduce_mod(MODULUS);
+        $o = $o.mul_mod(R, MODULUS);
     }};
 }
 
 macro_rules! Fr_band {
     ($o:expr,$a:expr,$b:expr) => {{
+        $a = $a.mul_redc(uint!(1_U256), MODULUS, INV);
+        $b = $b.mul_redc(uint!(1_U256), MODULUS, INV);
         $o = ($a & $b).reduce_mod(MODULUS);
+        $o = $o.mul_mod(R, MODULUS);
     }};
 }
 
 macro_rules! Fr_bor {
     ($o:expr,$a:expr,$b:expr) => {{
+        $a = $a.mul_redc(uint!(1_U256), MODULUS, INV);
+        $b = $b.mul_redc(uint!(1_U256), MODULUS, INV);
         $o = ($a | $b).reduce_mod(MODULUS);
+        $o = $o.mul_mod(R, MODULUS);
     }};
 }
 
@@ -115,9 +125,9 @@ macro_rules! Fr_bnot {
 macro_rules! Fr_fromBool {
     ($a:expr) => {{
         if ($a) {
-            uint!(1_U256)
+            uint!(1_U256).mul_mod(R, MODULUS)
         } else {
-            uint!(0_U256)
+            uint!(0_U256).mul_mod(R, MODULUS)
         }
     }};
 }
@@ -161,18 +171,22 @@ macro_rules! Fr_geq {
 
 macro_rules! Fr_isTrue {
     ($a:expr) => {{
-        $a == uint!(1_U256)
+        $a.mul_redc(uint!(1_U256), MODULUS, INV) == uint!(1_U256)
     }};
 }
 
 macro_rules! Fr_land {
     ($o:expr,$a:expr,$b:expr) => {{
+        $a = $a.mul_redc(uint!(1_U256), MODULUS, INV);
+        $b = $b.mul_redc(uint!(1_U256), MODULUS, INV);
         $o = Fr_fromBool!(Fr_isTrue!($a * $b));
     }};
 }
 
 macro_rules! Fr_lor {
     ($o:expr,$a:expr,$b:expr) => {{
+        $a = $a.mul_redc(uint!(1_U256), MODULUS, INV);
+        $b = $b.mul_redc(uint!(1_U256), MODULUS, INV);
         $o = Fr_fromBool!(Fr_isTrue!($a + $b));
     }};
 }
@@ -191,6 +205,7 @@ macro_rules! Fr_copyn {
             for i in 0..$n {
                 *(($o as *mut FieldElement).add(i)) =
                     *((($a as *const FieldElement) as *mut FieldElement).add(i));
+                // (*(($o as *mut FieldElement).add(i))).mul_redc(uint!(1_U256), MODULUS, INV);
             }
         }
     }};
@@ -198,7 +213,7 @@ macro_rules! Fr_copyn {
 
 macro_rules! Fr_toInt {
     ($a:expr) => {{
-        $a.as_limbs()[0] as usize
+        $a.mul_redc(uint!(1_U256), MODULUS, INV).as_limbs()[0] as usize
     }};
 }
 
@@ -217,7 +232,10 @@ macro_rules! Fr_pow {
 
 macro_rules! Fr_idiv {
     ($o:expr,$a:expr,$b:expr) => {{
+        $a = $a.mul_redc(uint!(1_U256), MODULUS, INV);
+        $b = $b.mul_redc(uint!(1_U256), MODULUS, INV);
         $o = $a / $b
+        $o = $o.mul_mod(R, MODULUS);
     }};
 }
 
@@ -348,12 +366,20 @@ pub fn get_constants() -> Vec<FieldElement> {
         let sv = bytes.read_i32::<LittleEndian>().unwrap() as i32;
         let typ = bytes.read_u32::<LittleEndian>().unwrap() as u32;
 
-        let bi = BigInteger256::read(&mut bytes).unwrap();
-        if typ == 0 {
-            constants[i] = Uint::from(sv);
+        let mut buf = [0; 32];
+        bytes.read_exact(&mut buf);
+
+        if typ & 0x80000000 == 0 {
+            constants[i] = Uint::from(sv).mul_mod(R, MODULUS);
         } else {
-            constants[i] = F::new(bi).into();
+            constants[i] = Uint::from_le_bytes(buf);
         }
     }
     return constants;
+}
+
+pub fn convert_signals(signals: &Vec<FieldElement>) {
+    for &i in signals {
+        println!("{}", i.mul_redc(uint!(1_U256), MODULUS, INV));
+    }
 }
